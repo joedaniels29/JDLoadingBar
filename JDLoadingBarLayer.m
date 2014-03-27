@@ -7,33 +7,65 @@
 #import "JDLoadingBarLayer.h"
 
 
+#define DEFAULT_WIDTH 25
+
+
+#define DEFAULT_HEIGHT 4
+
+
 
 @interface JDLoadingBarLayer ()
 
-@property (nonatomic, readonly) CGPoint startPoint;
-@property (nonatomic, readonly) CGPoint endPoint;
+@property (nonatomic, readonly) CGPoint startPoint, endPoint;
+
+@property (nonatomic, strong) NSArray *colors;
+
+@property (nonatomic, strong) NSTimer *timer;
+@property  CGFloat particleWidth, particleHeight, particleSpeed;
+//@property  NSInteger currentColor, colorCount;
 @end
 
 
 
 
 
-@implementation JDLoadingBarLayer
+@implementation JDLoadingBarLayer{
+	int currentColor, colorCount;
+	CGFloat explicitSpeed, _implicitParticleSpeed;
+	NSArray *_colors;
+	NSTimeInterval _timeInterval;
+
+}
 
 -(id) init{
 
 
 	self = [super init];
 	if (self){
-		CAKeyframeAnimation *animation = [[CAKeyframeAnimation alloc] init];
-//		animation.values = colors;
-		[self startAnimating];
+		self.particleWidth = DEFAULT_WIDTH; 
+		self.particleHeight = DEFAULT_HEIGHT;
+		self.colors = @[[UIColor blueColor], [UIColor greenColor], [UIColor redColor]];
+		colorCount = 3;
+		currentColor = 0;
 	}
+	[self startAnimating];
 	return self;
 }
 
 -(void) startAnimating{
-	CALayer *const layer = [self newRepLayer];
+	self.timer = [NSTimer timerWithTimeInterval:[self timeInterval] target:self selector:@selector(dispatchALayer)
+	                                         userInfo:nil repeats:YES];
+	[self.timer fire];
+	
+}
+
+-(NSTimeInterval) timeInterval{
+	if(!_timeInterval)  _timeInterval = _particleWidth /self.particleSpeed;
+	return _timeInterval;
+}
+
+-(void) dispatchALayer{
+	CALayer *const layer = [self newLayerWithColor:[self currentColor]];
 	[self addSublayer:layer];
 //	CAAnimation *movementAnimation = [CABasicAnimation animationWithKeyPath:@"frame.center"];
 	CABasicAnimation *animation = [CABasicAnimation animationWithKeyPath:@"position"];
@@ -46,60 +78,27 @@
 	[layer addAnimation:animation forKey:@"position"];
 }
 
--(CALayer *) newLayer{
+-(UIColor *) currentColor{
+	currentColor = (currentColor ++) %colorCount;
+	return self.colors[currentColor];
+}
+
+-(CALayer *) newLayerWithColor:(UIColor *)c {
 	CALayer *layer = [[CALayer alloc] init];
-	layer.frame = CGRectMake(self.startPoint.x, self.startPoint.y, 10, 10);
-	layer.backgroundColor = [[UIColor blueColor] colorWithAlphaComponent:.7].CGColor;
-	layer.borderColor = [[UIColor blueColor] colorWithAlphaComponent:1].CGColor;
+	layer.frame = CGRectMake(self.startPoint.x, self.startPoint.y, _particleWidth, _particleHeight);
+	layer.backgroundColor = [c colorWithAlphaComponent:.7].CGColor;
+	layer.borderColor = [c colorWithAlphaComponent:1].CGColor;
 	layer.borderWidth = 2;
 
 	return layer;
 }
--(CALayer *) newRepLayer{
-	CALayer *layer = [[CALayer alloc] init];
-	layer.frame = CGRectMake(self.startPoint.x, self.startPoint.y, self.size.width, self.size.height);
-	layer.backgroundColor = [[UIColor whiteColor] colorWithAlphaComponent:.7].CGColor;
-	layer.borderColor = [[UIColor blueColor] colorWithAlphaComponent:1].CGColor;
-	layer.borderWidth = 2;
-
-
-	CAReplicatorLayer * replicatorLayer = [[CAReplicatorLayer alloc] init];
-
-	replicatorLayer.instanceCount = 8;
-	replicatorLayer.instanceDelay = .5;
-	replicatorLayer.instanceGreenOffset =-.05;
-	replicatorLayer.instanceRedOffset = -.05f ;
-//	replicatorLayer.instanceBlueOffset = -.05f;
-	replicatorLayer.instanceColor = [UIColor whiteColor].CGColor;
-	replicatorLayer.preservesDepth = YES;
-	replicatorLayer.instanceTransform = CATransform3DMakeTranslation(-self.size.width, 0, 0);
-	[replicatorLayer addSublayer:layer];
-
-
-
-	CAReplicatorLayer *replicatorLayer2 = [CAReplicatorLayer layer];
-	replicatorLayer2.instanceCount = 3;
-	replicatorLayer2.instanceDelay = 1;
-	replicatorLayer2.instanceGreenOffset = -.1;
-	replicatorLayer2.instanceRedOffset = -.07;
-	replicatorLayer2.instanceBlueOffset = -.1;
-	replicatorLayer2.instanceTransform = CATransform3DMakeTranslation(-self.size.width/2,10, 0);
-	[replicatorLayer2 addSublayer:replicatorLayer];
-
-
-
-
-
-
-
-	return replicatorLayer2;
-}
 
 -(void) stopAnimating{
+	if (self.timer.isValid)[self.timer invalidate];
 }
 
 -(BOOL) isAnimating{
-	return NO;
+	return self.timer.isValid;
 }
 
 -(float) getDuration{
@@ -117,17 +116,45 @@
 	return CGPointMake(500, 50);
 }
 
+-(NSArray *) colors{
+	if (!_colors) _colors= [[NSArray alloc]init];
+	return _colors;
+}
+
+-(CGFloat) particleSpeed{
+	if(!explicitSpeed){
+		if(!_implicitParticleSpeed){
+			_implicitParticleSpeed = 200.0f; //px per second
+		}
+		return _implicitParticleSpeed;
+	}else return explicitSpeed;
+	
+}
+
+-(void) setParticleSpeed:(CGFloat)particleSpeed{
+	explicitSpeed = particleSpeed;
+}
+
+
+-(void) setColors:(NSArray *)colors{
+#ifdef DEBUG
+	for(id potentialColor in colors){
+		NSAssert([potentialColor isKindOfClass:UIColor.class], @"Colors need to be colors. You supplied a %@", [potentialColor class]);
+	}
+#endif
+	_colors = colors;
+}
 
 
 - (CABasicAnimation *)pushAnimation
 {
 	CABasicAnimation *pushAnim = [CABasicAnimation animationWithKeyPath:@"instanceTransform"];
-	pushAnim.fromValue = [NSValue valueWithCATransform3D:CATransform3DMakeTranslation(SUBLAYER_WIDTH+INTERSPACE, 0, 0)];
-	pushAnim.toValue = [NSValue valueWithCATransform3D:CATransform3DMakeTranslation(SUBLAYER_WIDTH+INTERSPACE+60, 0, 0)];
-	pushAnim.duration = 3.0;
-	pushAnim.autoreverses = YES;
-	pushAnim.repeatCount = HUGE_VAL;
-	pushAnim.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+//	pushAnim.fromValue = [NSValue valueWithCATransform3D:CATransform3DMakeTranslation(SUBLAYER_WIDTH+INTERSPACE, 0, 0)];
+//	pushAnim.toValue = [NSValue valueWithCATransform3D:CATransform3DMakeTranslation(SUBLAYER_WIDTH+INTERSPACE+60, 0, 0)];
+//	pushAnim.duration = 3.0;
+//	pushAnim.autoreverses = YES;
+//	pushAnim.repeatCount = HUGE_VAL;
+//	pushAnim.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
 	return pushAnim;
 }
 @end
