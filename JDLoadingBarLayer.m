@@ -53,7 +53,7 @@
 }
 
 -(void) startAnimating{
-	self.timer = [NSTimer timerWithTimeInterval:[self timeInterval] target:self selector:@selector(dispatchALayer)
+	self.timer = [NSTimer scheduledTimerWithTimeInterval:[self timeInterval] target:self selector:@selector(dispatchALayer)
 	                                         userInfo:nil repeats:YES];
 	[self.timer fire];
 	
@@ -79,7 +79,7 @@
 }
 
 -(UIColor *) currentColor{
-	currentColor = (currentColor ++) %colorCount;
+	currentColor = (currentColor +1) %colorCount;
 	return self.colors[currentColor];
 }
 
